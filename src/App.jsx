@@ -1,6 +1,7 @@
 import { useState } from "react";
-import MapView from "./components/map/MapView.jsx";
+import TripMap from "./components/map/TripMap.jsx";
 import PlaceSearch from "./components/map/PlaceSearch.jsx";
+import SavedTrips from "./components/trips/SavedTrips.jsx";
 import ItineraryPanel from "./components/itinerary/ItineraryPanel.jsx";
 
 const INITIAL_STOPS = [
@@ -29,6 +30,8 @@ const INITIAL_FORM = {
   travelers: "2",
   transport: "car",
   budget: "500000",
+  days: "",
+  interests: "",
 };
 
 const TRANSPORT_OPTIONS = [
@@ -55,6 +58,11 @@ function formatRupiah(value) {
 
 export default function App() {
   const [stops, setStops] = useState(INITIAL_STOPS);
+  const [focus, setFocus] = useState(null);
+  const [showPlan, setShowPlan] = useState(true);
+  const [itinerary, setItinerary] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState({ id: null, title: "" });
+  const [showTrips, setShowTrips] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [notice, setNotice] = useState("");
 
@@ -122,244 +130,191 @@ export default function App() {
     setNotice("Contoh perjalanan dipulihkan.");
   }
 
+  function getTripData() {
+    return { version: 1, stops, form, itinerary };
+  }
+
+  function loadTrip(row) {
+    const d = row.data || {};
+    if (!Array.isArray(d.stops)) {
+      setNotice("Data perjalanan tersimpan tidak valid.");
+      return;
+    }
+    setStops(d.stops);
+    setForm({ ...INITIAL_FORM, ...(d.form || {}) });
+    setItinerary(d.itinerary || null);
+    setCurrentTrip({ id: row.id, title: row.title });
+    setFocus(null);
+    setNotice(`Perjalanan "${row.title}" dimuat.`);
+  }
+
   const preferences = {
     departure: form.departure.trim(),
     travelers: form.travelers,
     transport: form.transport,
     budget: form.budget,
+    days: form.days,
+    interests: form.interests,
   };
 
-  return (
-    <main className="bg-gray-50 min-h-screen text-gray-900">
-      <header className="bg-white border-gray-200 border-b">
-        <div className="flex flex-wrap justify-between items-center gap-3 mx-auto px-4 sm:px-6 lg:px-8 py-5 max-w-7xl">
-          <div>
-            <p className="font-semibold text-emerald-700 text-sm uppercase tracking-wider">
-              Travel smarter
-            </p>
-            <h1 className="mt-1 font-extrabold text-2xl sm:text-3xl tracking-tight">
-              trial-AImap
-            </h1>
-            <p className="mt-1 text-gray-500 text-sm">
-              Rencanakan perjalanan lokal maupun internasional dengan bantuan
-              AI.
-            </p>
-          </div>
+  const inputCls =
+    "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
-          <div className="bg-emerald-50 px-4 py-2 border border-emerald-100 rounded-full font-medium text-emerald-800 text-sm">
-            {stops.length} / 10 destinasi
+  function stepFocus(dir) {
+    if (!stops.length) return;
+    setFocus((f) => (f == null ? (dir > 0 ? 0 : stops.length - 1) : (f + dir + stops.length) % stops.length));
+  }
+
+  return (
+    <div className="flex flex-col bg-canvas min-h-screen lg:h-screen text-ink">
+      <header className="z-[600] flex justify-between items-center bg-white px-4 sm:px-6 py-3 border-gray-200 border-b shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex justify-center items-center bg-brand-600 rounded-xl size-10 text-white text-lg">⌖</div>
+          <div>
+            <h1 className="font-heading font-extrabold text-lg leading-none">trial-AImap</h1>
+            <p className="hidden sm:block mt-1 text-muted text-xs">AI Travel Planner</p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="bg-brand-50 px-3 py-1.5 border border-brand-100 rounded-full font-semibold text-brand-700 text-sm">
+            {stops.length} / 10 destinasi
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowTrips(true)}
+            className="hover:bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-full font-medium text-sm">
+            Trip tersimpan
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPlan((v) => !v)}
+            className="hidden lg:block hover:bg-gray-50 px-3 py-1.5 border border-gray-200 rounded-full font-medium text-sm">
+            {showPlan ? "Sembunyikan itinerary" : "Tampilkan itinerary"}
+          </button>
         </div>
       </header>
 
-      <div className="space-y-6 mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
-        <section className="gap-6 grid grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div className="space-y-6">
-            <PlaceSearch onSelect={addStop} />
+      <main className="relative flex flex-col flex-1 lg:block min-h-0">
+        <div className="h-[48vh] lg:h-auto lg:absolute lg:inset-0 z-0">
+          <TripMap stops={stops} focus={focus} onFocus={setFocus} padLeft={showPlan ? 820 : 440} />
+        </div>
 
-            <section className="bg-white shadow-sm p-4 sm:p-5 border border-gray-200 rounded-2xl">
-              <div className="flex flex-wrap justify-between items-start gap-3">
-                <div>
-                  <h2 className="font-bold text-lg">Destinasi perjalanan</h2>
-                  <p className="mt-1 text-gray-500 text-sm">
-                    Atur urutan tempat yang ingin dikunjungi.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={restoreExampleStops}
-                  className="hover:bg-gray-50 px-3 py-2 border border-gray-300 rounded-lg font-medium text-sm">
-                  Pulihkan contoh
-                </button>
-              </div>
-
-              {stops.length === 0 ? (
-                <div className="mt-4 p-6 border border-gray-300 border-dashed rounded-xl text-center">
-                  <p className="font-medium text-gray-700">
-                    Belum ada destinasi
-                  </p>
-                  <p className="mt-1 text-gray-500 text-sm">
-                    Cari kota, restoran, atau tempat wisata di atas.
-                  </p>
-                </div>
-              ) : (
-                <ol className="space-y-3 mt-4">
-                  {stops.map((stop, index) => (
-                    <li
-                      key={stop.id || `${stop.lat}-${stop.lng}`}
-                      className="flex gap-3 p-3 border border-gray-200 rounded-xl">
-                      <div className="flex justify-center items-center bg-emerald-100 rounded-full size-8 font-bold text-emerald-800 text-sm shrink-0">
-                        {index + 1}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold break-words">{stop.name}</p>
-                        <p className="mt-1 text-gray-500 text-xs break-words">
-                          {stop.address ||
-                            `${stop.lat.toFixed(5)}, ${stop.lng.toFixed(5)}`}
-                        </p>
-                        {stop.country && (
-                          <p className="mt-1 text-emerald-700 text-xs">
-                            {stop.country}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => moveStop(index, -1)}
-                            className="disabled:opacity-40 px-2.5 py-1.5 border border-gray-200 rounded-lg font-medium text-xs disabled:cursor-not-allowed">
-                            Naik
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={index === stops.length - 1}
-                            onClick={() => moveStop(index, 1)}
-                            className="disabled:opacity-40 px-2.5 py-1.5 border border-gray-200 rounded-lg font-medium text-xs disabled:cursor-not-allowed">
-                            Turun
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => removeStop(stop.id)}
-                            className="hover:bg-red-50 px-2.5 py-1.5 border border-red-200 rounded-lg font-medium text-red-700 text-xs">
-                            Hapus
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={resetStops}
-                  disabled={stops.length === 0}
-                  className="hover:bg-gray-50 disabled:opacity-40 px-3 py-2 border border-gray-300 rounded-xl font-medium text-sm">
-                  Kosongkan destinasi
-                </button>
-              </div>
-
-              {notice && (
-                <p role="status" className="mt-3 text-emerald-800 text-sm">
-                  {notice}
-                </p>
-              )}
-            </section>
-
-            <section className="bg-white shadow-sm p-4 sm:p-5 border border-gray-200 rounded-2xl">
-              <h2 className="font-bold text-lg">Preferensi perjalanan</h2>
-              <p className="mt-1 text-gray-500 text-sm">
-                Informasi ini membantu AI memilih rencana dan transportasi yang
-                sesuai.
-              </p>
-
-              <form
-                className="space-y-4 mt-4"
-                onSubmit={(event) => event.preventDefault()}>
-                <label className="block">
-                  <span className="block mb-1.5 font-medium text-sm">
-                    Tanggal atau waktu keberangkatan
-                  </span>
-                  <input
-                    type="text"
-                    name="departure"
-                    value={form.departure}
-                    onChange={updateForm}
-                    placeholder="Contoh: 20 Desember 2026"
-                    maxLength={40}
-                    className="px-3 py-2.5 border border-gray-300 focus:border-emerald-500 rounded-xl outline-none focus:ring-2 focus:ring-emerald-100 w-full"
-                  />
-                  <span className="block mt-1 text-gray-500 text-xs">
-                    Opsional. Jika diisi, AI tetap perlu data jadwal
-                    terverifikasi.
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="block mb-1.5 font-medium text-sm">
-                    Jumlah peserta
-                  </span>
-                  <input
-                    type="number"
-                    name="travelers"
-                    value={form.travelers}
-                    onChange={updateForm}
-                    min="1"
-                    max="20"
-                    required
-                    className="px-3 py-2.5 border border-gray-300 rounded-xl w-full"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="block mb-1.5 font-medium text-sm">
-                    Preferensi transportasi
-                  </span>
-                  <select
-                    name="transport"
-                    value={form.transport}
-                    onChange={updateForm}
-                    className="bg-white px-3 py-2.5 border border-gray-300 rounded-xl w-full">
-                    {TRANSPORT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="block mb-1.5 font-medium text-sm">
-                    Anggaran total (rupiah)
-                  </span>
-                  <input
-                    type="number"
-                    name="budget"
-                    value={form.budget}
-                    onChange={updateForm}
-                    min="0"
-                    max="1000000000"
-                    required
-                    className="px-3 py-2.5 border border-gray-300 rounded-xl w-full"
-                  />
-                  <span className="block mt-1 text-gray-500 text-xs">
-                    Anggaran yang dimasukkan: {formatRupiah(form.budget)}
-                  </span>
-                </label>
-              </form>
-            </section>
-          </div>
-
-          <section className="flex flex-col bg-white shadow-sm border border-gray-200 rounded-2xl min-h-[420px] overflow-hidden">
-            <div className="p-4 border-gray-200 border-b">
-              <h2 className="font-bold text-lg">Peta perjalanan</h2>
-              <p className="mt-1 text-gray-500 text-sm">
-                Periksa titik lokasi dan rute di antara destinasi.
-              </p>
+        <div className="lg:absolute lg:inset-y-4 lg:left-4 z-[500] lg:flex lg:gap-4 lg:pointer-events-none">
+          {/* Panel kiri: cari, destinasi, preferensi */}
+          <section className="flex flex-col bg-white shadow-xl lg:rounded-3xl lg:w-[400px] lg:overflow-hidden pointer-events-auto">
+            <div className="p-4 border-gray-100 border-b">
+              <PlaceSearch onSelect={addStop} />
             </div>
 
-            <div className="flex-1 min-h-[420px]">
-              <MapView stops={stops} onStopsChange={setStops} />
+            <div className="flex-1 space-y-5 p-4 min-h-0 lg:overflow-y-auto thin-scroll">
+              <div>
+                <div className="flex justify-between items-center">
+                  <h2 className="font-heading font-bold">Destinasi</h2>
+                  <div className="flex gap-2 text-xs">
+                    <button type="button" onClick={restoreExampleStops} className="font-semibold text-brand-700 hover:underline">Contoh</button>
+                    <button type="button" onClick={resetStops} disabled={!stops.length} className="font-semibold text-red-700 disabled:opacity-40 hover:underline">Kosongkan</button>
+                  </div>
+                </div>
+
+                {stops.length === 0 ? (
+                  <p className="mt-3 p-4 border border-gray-300 border-dashed rounded-xl text-muted text-sm text-center">
+                    Belum ada destinasi. Cari tempat di atas.
+                  </p>
+                ) : (
+                  <ol className="space-y-2 mt-3">
+                    {stops.map((stop, index) => (
+                      <li
+                        key={stop.id}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${focus === index ? "border-blue-500 bg-blue-50/50" : "border-gray-200"}`}>
+                        <button
+                          type="button"
+                          onClick={() => setFocus(index)}
+                          className="flex flex-1 items-center gap-3 min-w-0 text-left">
+                          <span className="flex justify-center items-center bg-blue-600 rounded-full size-7 font-bold text-white text-xs shrink-0">{index + 1}</span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-sm truncate">{stop.name}</span>
+                            <span className="block text-muted text-xs truncate">{stop.address || stop.country || stop.category}</span>
+                          </span>
+                        </button>
+                        <div className="flex gap-1 shrink-0">
+                          <button type="button" aria-label="Naikkan" disabled={index === 0} onClick={() => moveStop(index, -1)} className="disabled:opacity-30 hover:bg-gray-100 rounded-lg size-7">↑</button>
+                          <button type="button" aria-label="Turunkan" disabled={index === stops.length - 1} onClick={() => moveStop(index, 1)} className="disabled:opacity-30 hover:bg-gray-100 rounded-lg size-7">↓</button>
+                          <button type="button" aria-label={`Hapus ${stop.name}`} onClick={() => removeStop(stop.id)} className="hover:bg-red-50 rounded-lg size-7 text-red-600">✕</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+
+                {stops.length > 1 && (
+                  <div className="flex justify-between items-center mt-3 text-xs">
+                    <span className="text-muted">Fokus ke titik di peta</span>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => stepFocus(-1)} className="hover:bg-gray-100 border border-gray-200 rounded-lg size-8">‹</button>
+                      <button type="button" onClick={() => stepFocus(1)} className="hover:bg-gray-100 border border-gray-200 rounded-lg size-8">›</button>
+                      <button type="button" onClick={() => setFocus(null)} className="hover:bg-gray-100 px-2 border border-gray-200 rounded-lg h-8">Semua</button>
+                    </div>
+                  </div>
+                )}
+                {notice && <p role="status" className="mt-2 text-brand-700 text-xs">{notice}</p>}
+              </div>
+
+              <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                <h2 className="font-heading font-bold">Preferensi</h2>
+                <label className="block">
+                  <span className="block mb-1 font-medium text-xs">Tanggal keberangkatan (opsional)</span>
+                  <input name="departure" value={form.departure} onChange={updateForm} maxLength={40} placeholder="Contoh: 20 Desember 2026" className={inputCls} />
+                </label>
+                <div className="gap-3 grid grid-cols-2">
+                  <label className="block">
+                    <span className="block mb-1 font-medium text-xs">Peserta</span>
+                    <input type="number" name="travelers" value={form.travelers} onChange={updateForm} min="1" max="20" required className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="block mb-1 font-medium text-xs">Transportasi</span>
+                    <select name="transport" value={form.transport} onChange={updateForm} className={inputCls}>
+                      {TRANSPORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="block mb-1 font-medium text-xs">Anggaran total (Rp)</span>
+                  <input type="number" name="budget" value={form.budget} onChange={updateForm} min="0" max="1000000000" required className={inputCls} />
+                  <span className="block mt-1 text-muted text-xs">{formatRupiah(form.budget)}</span>
+                </label>
+                <div className="gap-3 grid grid-cols-2">
+                  <label className="block">
+                    <span className="block mb-1 font-medium text-xs">Durasi (hari, opsional)</span>
+                    <input type="number" name="days" value={form.days} onChange={updateForm} min="1" max="30" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="block mb-1 font-medium text-xs">Minat (opsional)</span>
+                    <input name="interests" value={form.interests} onChange={updateForm} maxLength={200} placeholder="kuliner, alam" className={inputCls} />
+                  </label>
+                </div>
+              </form>
             </div>
           </section>
-        </section>
 
-        <section id="itinerary" className="scroll-mt-6">
-          <ItineraryPanel stops={stops} preferences={preferences} />
-        </section>
+          {/* Panel tengah: itinerary AI */}
+          {showPlan && (
+            <section className="bg-white shadow-xl lg:rounded-3xl lg:w-[400px] lg:overflow-hidden pointer-events-auto mt-4 lg:mt-0 lg:h-full">
+              <ItineraryPanel stops={stops} preferences={preferences} itinerary={itinerary} setItinerary={setItinerary} />
+            </section>
+          )}
+        </div>
+      </main>
 
-        <footer className="py-5 border-gray-200 border-t text-gray-500 text-xs leading-5">
-          Data lokasi berasal dari OpenStreetMap jika tersedia. Rute, jadwal,
-          harga tiket, dan tarif transportasi harus diperiksa sesuai penyedia
-          dan tanggal perjalanan. Estimasi AI bukan harga atau jadwal resmi.
-        </footer>
-      </div>
-    </main>
+      {showTrips && (
+        <SavedTrips
+          onClose={() => setShowTrips(false)}
+          getTripData={getTripData}
+          onLoad={loadTrip}
+          current={currentTrip}
+          setCurrent={setCurrentTrip}
+          hasContent={stops.length > 0}
+        />
+      )}
+    </div>
   );
 }

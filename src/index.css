@@ -69,3 +69,19 @@ select:focus-visible {
 .leaflet-popup-content {
   line-height: 1.6;
 }
+
+/* ---- Marker bernomor & popup ala kartu ---- */
+.pin {
+  width: 36px; height: 36px; border-radius: 9999px;
+  background: #fff; border: 3px solid #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.18), 0 4px 10px rgba(0,0,0,.25);
+  display: grid; place-items: center;
+  font: 700 14px "Plus Jakarta Sans", sans-serif; color: #1d4ed8;
+  transition: transform .15s;
+}
+.pin-active { background: #2563eb; color: #fff; transform: scale(1.18); }
+.stop-popup .leaflet-popup-content-wrapper { border-radius: 16px; padding: 4px 2px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.stop-popup .leaflet-popup-content { margin: 10px 14px; }
+.leaflet-control-zoom { border: none !important; box-shadow: 0 4px 14px rgba(0,0,0,.15) !important; border-radius: 14px !important; overflow: hidden; }
+.thin-scroll::-webkit-scrollbar { width: 6px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #d4ddd9; border-radius: 9999px; }

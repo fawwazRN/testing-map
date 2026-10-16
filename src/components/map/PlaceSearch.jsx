@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiRequest } from "../../lib/api.js";
 
 const CATEGORIES = [
   { value: "all", label: "Semua tempat" },
@@ -35,15 +36,7 @@ export default function PlaceSearch({ onSelect }) {
         category,
       });
 
-      const response = await fetch(
-        `http://localhost:3001/api/places/search?${params}`,
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Pencarian gagal.");
-      }
+      const data = await apiRequest(`/api/places/search?${params}`);
 
       setResults(data.results || []);
 
